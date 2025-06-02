@@ -109,29 +109,24 @@
 
 # src/client/client.py
 
-import os
+# chat.py
+
 from dataclasses import dataclass, field
+from typing import Any, Dict, List
 
-from dotenv import load_dotenv
-from google import genai
 from google.genai import types
-from mcp import ClientSession, StdioServerParameters
-from mcp.client.stdio import stdio_client
+from mcp import ClientSession
 
-load_dotenv()
-client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
-
-server_params = StdioServerParameters(
-    command="python",
-    args=["./src/main/server.py"],
-    env=None,
-)
 
 @dataclass
 class Chat:
-    # Agora guardamos o histórico como lista de dicionários,
-    # mas converteremos para types.Content na hora de chamar o SDK.
-    messages: list[dict] = field(
+    """
+    Classe responsável por manter o histórico de mensagens e
+    processar queries, usando um genai_client e o server_params injetados.
+    """
+    genai_client: Any                    # Será o genai.Client (instanciado lá fora)
+    server_params: Any                   # Será um StdioServerParameters (passado de fora)
+    messages: List[Dict[str, str]] = field(
         default_factory=lambda: [
             {
                 "author": "system",
@@ -145,18 +140,19 @@ class Chat:
     )
 
     async def process_query(self, session: ClientSession, query: str) -> None:
-        # 1) Adiciona a mensagem do usuário ao histórico (como dicionário)
+        """
+        1) Adiciona a mensagem do usuário no histórico (self.messages).
+        2) Converte self.messages em uma lista de types.Content e chama genai_client.
+        3) Armazena a resposta (assistant_text) em self.messages.
+        """
         self.messages.append({"author": "user", "content": query})
 
-               # 2) Converte cada item de self.messages em um types.Content
-        content_list: list[types.Content] = []
+        content_list: List[types.Content] = []
         for msg in self.messages:
             role = msg["author"]
             texto = msg["content"]
 
-            # Mapeia os papéis para os aceitos pelo Gemini
             if role == "system":
-                # Gemini não aceita "system", então tratamos como "user" (prompt inicial)
                 content_list.append(
                     types.Content(
                         role="user",
@@ -178,7 +174,6 @@ class Chat:
                     )
                 )
             else:
-                # Caso tenha outro papel, trate como "user" por padrão
                 content_list.append(
                     types.Content(
                         role="user",
@@ -186,18 +181,15 @@ class Chat:
                     )
                 )
 
-        # 3) Chama o generate_content com a lista de types.Content
-        response = client.models.generate_content(
+        response = self.genai_client.models.generate_content(
             model="gemini-2.0-flash",
             contents=content_list,
         )
 
-        # 4) O SDK retorna um objeto cujo .text é a resposta em texto
         assistant_text = response.text
-        # 5) Armazena a resposta no histórico (como dicionário para exibição local)
         self.messages.append({"author": "assistant", "content": assistant_text})
 
-        print(assistant_text)
+        return assistant_text
 
     async def chat_loop(self, session: ClientSession) -> None:
         while True:
@@ -206,16 +198,12 @@ class Chat:
                 continue
             await self.process_query(session, query)
 
-    async def run(self):
-        async with stdio_client(server_params) as (read, write):
+    async def run(self) -> None:
+        """
+        Abre o stdio_client usando server_params e executa chat_loop.
+        """
+        from mcp.client.stdio import stdio_client 
+        async with stdio_client(self.server_params) as (read, write):
             async with ClientSession(read, write) as session:
                 await session.initialize()
                 await self.chat_loop(session)
-
-
-if __name__ == "__main__":
-    import asyncio
-
-    chat = Chat()
-    print("Starting server...")
-    asyncio.run(chat.run())
