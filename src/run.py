@@ -7,5 +7,5 @@ chat = Chat()
 
 if __name__ == "__main__":
     print("Starting server...")
-    mcp.run(transport="stdio")
+    #mcp.run(transport="stdio")
     run(chat.run())
