@@ -1,6 +1,6 @@
 from asyncio import run
 
-from client.client import Chat
+from client.chat import Chat
 from main.server import mcp
 
 chat = Chat()

@@ -32,5 +32,4 @@ def example_prompt(code: str) -> str:
     return f"Please review this code:\n\n{code}"
 
 if __name__ == "__main__":
-    # Ao rodar “python src/main/server.py”, entramos aqui e iniciamos o MCP via stdio.
     mcp.run(transport="stdio")

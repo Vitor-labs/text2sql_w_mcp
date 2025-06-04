@@ -20,16 +20,10 @@ server_params = StdioServerParameters(
 
 
 async def start_cli_chat() -> None:
-    """
-    Exemplo de execução em linha de comando (terminal).
-    Esta função cria uma instância do Chat, passa genai_client e server_params,
-    e executa o run() para iniciar o loop de stdin/stdout.
-    """
     chat = Chat(genai_client=genai_client, server_params=server_params)
     print("Starting server dentro do start_cli_chat()…")
     await chat.run()
 
 
 if __name__ == "__main__":
-    # Se desejarmos rodar em terminal: python main.py
     asyncio.run(start_cli_chat())
