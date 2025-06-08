@@ -4,6 +4,11 @@ import sys
 
 import streamlit as st
 from dotenv import load_dotenv
+from google import genai
+from mcp import ClientSession, StdioServerParameters
+from mcp.client.stdio import stdio_client
+
+from client.client import Chat
 
 load_dotenv()
 
@@ -12,14 +17,8 @@ SRC_DIR = os.path.join(PROJECT_ROOT, "src")
 if SRC_DIR not in sys.path:
     sys.path.append(SRC_DIR)
 
-from google import genai
-from mcp import ClientSession, StdioServerParameters
-from mcp.client.stdio import stdio_client
-
-from client.chat import Chat
 
 genai_client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
-
 server_params = StdioServerParameters(
     command="python",
     args=["./src/main/server.py"],
@@ -28,10 +27,7 @@ server_params = StdioServerParameters(
 
 
 if "chat" not in st.session_state:
-    st.session_state.chat = Chat(
-        genai_client=genai_client,
-        server_params=server_params
-    )
+    st.session_state.chat = Chat(genai_client=genai_client, server_params=server_params)
 
 if "history" not in st.session_state:
     st.session_state.history = [
@@ -46,19 +42,16 @@ if "history" not in st.session_state:
     ]
 
 
-async def _send_to_gemini_and_sql(chat_obj: Chat, user_query: str) -> str:
-
+async def _send_to_gemini_and_sql(chat_obj: Chat, user_query: str) -> None:
     async with stdio_client(chat_obj.server_params) as (reader, writer):
         async with ClientSession(reader, writer) as session:
             await session.initialize()
             # O process_query adiciona a mensagem do usuário, envia tudo para o Gemini
             # e adiciona a resposta ao chat_obj.messages. Ele também retorna a string.
-            answer = await chat_obj.process_query(session, user_query)
-            return answer
+            return await chat_obj.process_query(session, user_query)
 
 
-def send_to_assistant(user_text: str) -> str:
-
+def send_to_assistant(user_text: str) -> None:
     return asyncio.run(_send_to_gemini_and_sql(st.session_state.chat, user_text))
 
 
@@ -87,6 +80,6 @@ with st.form("input_form", clear_on_submit=True):
             except Exception as e:
                 bot_answer = f"❗ Ocorreu um erro ao chamar o servidor: {e}"
 
-        st.session_state.history.append({"author": "assistant", "content": bot_answer})
+        st.session_state.history.append({"author": "assistant", "content": bot_answer})  # type: ignore
 
         st.rerun()
