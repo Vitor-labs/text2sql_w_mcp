@@ -24,6 +24,7 @@ def query_data(sql: str) -> str:
             conn.commit()
             return "\n".join(str(row) for row in result)
         except Exception as e:
+            print(f"Erro ao executar SQL: {e}")
             return f"Error: {str(e)}"
 
 
