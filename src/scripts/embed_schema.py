@@ -1,12 +1,11 @@
 # Exemplo para scripts/embed_schema.py
-import os
 import sqlite3
+import os
+from langchain_google_genai import GoogleGenerativeAIEmbeddings
+from langchain_community.vectorstores import FAISS
 
 # Carregar variáveis de ambiente (GOOGLE_API_KEY)
 from dotenv import load_dotenv
-from langchain_community.vectorstores import FAISS
-from langchain_google_genai import GoogleGenerativeAIEmbeddings
-
 load_dotenv()
 
 def get_schema_description(conn):

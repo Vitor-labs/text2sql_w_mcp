@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS alunos (
 cursor.executemany(
     "INSERT INTO alunos (nome, idade, curso) VALUES (?, ?, ?)",
     [
-        ("Moniere", 21, "Engenharia de Software")
+        ("ALbetto", 21, "Engenharia de Software")
     ]
 )
 
