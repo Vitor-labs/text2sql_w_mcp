@@ -1,84 +1,186 @@
+# src/client/client.py
+import logging
 from dataclasses import dataclass, field
 from typing import Any, Dict, List
 
-from google.genai.types import Content, Part
+from google.genai.types import Content, FunctionDeclaration, Part, Tool
 from mcp import ClientSession
 from mcp.client.stdio import stdio_client
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
 class Chat:
     """
-    Classe responsável por manter o histórico de mensagens e
-    processar queries, usando um genai_client e o server_params injetados.
+    Enhanced Chat class with proper MCP tool integration
     """
 
-    genai_client: Any  # Será o genai.Client (instanciado lá fora)
-    server_params: Any  # Será um StdioServerParameters (passado de fora)
+    genai_client: Any
+    server_params: Any
     messages: List[Dict[str, str]] = field(
         default_factory=lambda: [
             {
                 "author": "system",
                 "content": (
-                    "You are a analyst assistant, master in SQL. Your job is to trans"
-                    + "late natural language to SQL statements and execute those quer"
-                    + "ies (via external tools) and provide the results back to the u"
-                    + "ser in natural language and markdown tables if asked."
+                    "You are an expert SQL analyst assistant. Your job is to:\n"
+                    "1. Translate natural language queries into SQL statements\n"
+                    "2. Execute SQL queries using the available tools\n"
+                    "3. Present results in clear, formatted tables\n"
+                    "4. Explain your analysis when needed\n\n"
+                    "Available tools:\n"
+                    "- query_data: Execute SQL queries on the database"
                 ),
             }
         ]
     )
 
-    async def process_query(self, session: ClientSession, query: str) -> None:
-        """
-        1) Adiciona a mensagem do usuário no histórico (self.messages).
-        2) Converte self.messages em uma lista de Content e chama genai_client.
-        3) Armazena a resposta (assistant_text) em self.messages.
-        """
-        self.messages.append({"author": "user", "content": query})
+    def _convert_messages_to_content(self) -> list[Content]:
+        """Convert internal message format to Gemini Content format"""
+        return [
+            Content(
+                role="user" if msg["author"] in ["system", "user"] else "model",
+                parts=[Part.from_text(text=msg["content"])],
+            )
+            for msg in self.messages
+        ]
 
-        content_list: list[Content] = []
-        for msg in self.messages:
-            if msg["author"] == "system":
-                content_list.append(
-                    Content(role="user", parts=[Part.from_text(text=msg["content"])])
+    async def _get_available_tools(self, session: ClientSession) -> list[Tool]:
+        """Fetch available tools from MCP server and convert to Gemini Tool format"""
+        try:
+            gemini_tools = []
+
+            for tool in (await session.list_tools()).tools:
+                # Convert MCP tool to Gemini Tool format
+                gemini_tools.append(
+                    Tool(
+                        function_declarations=[
+                            FunctionDeclaration(
+                                name=tool.name,
+                                description=tool.description,
+                                parameters={
+                                    "type": "object",
+                                    "properties": tool.inputSchema.get(
+                                        "properties", {}
+                                    ),
+                                    "required": tool.inputSchema.get("required", []),
+                                },
+                            )
+                        ]
+                    )
                 )
-            elif msg["author"] == "user":
-                content_list.append(
-                    Content(role="user", parts=[Part.from_text(text=msg["content"])])
-                )
-            elif msg["author"] == "assistant":
-                content_list.append(
-                    Content(role="model", parts=[Part.from_text(text=msg["content"])])
-                )
+            logger.info(f"Found {len(gemini_tools)} available tools")
+            return gemini_tools
+
+        except Exception as e:
+            logger.error(f"Failed to get tools: {e}")
+            return []
+
+    async def _execute_tool_call(
+        self, session: ClientSession, tool_name: str, arguments: dict[str, Any]
+    ) -> str:
+        """Execute a tool call through MCP"""
+        try:
+            logger.info(f"Executing tool: {tool_name} with args: {arguments}")
+            result = await session.call_tool(tool_name, arguments)
+
+            if result.isError:
+                return f"Tool execution failed: {result.content[0].text if result.content else 'Unknown error'}"
+
+            return (
+                result.content[0].text
+                if result.content
+                else "Tool executed successfully (no output)"
+            )
+        except Exception as e:
+            logger.error(f"Tool execution error: {e}")
+            return f"Error executing tool {tool_name}: {str(e)}"
+
+    async def process_query(self, session: ClientSession, query: str) -> str:
+        """Process user query with tool integration"""
+        try:
+            self.messages.append({"author": "user", "content": query})
+            response = self.genai_client.models.generate_content(
+                model="gemini-2.0-flash",
+                contents=self._convert_messages_to_content(),
+                tools=tools
+                if (tools := await self._get_available_tools(session))
+                else None,
+            )
+
+            assistant_response = ""
+
+            # Handle tool calls if present
+            if hasattr(response.candidates[0].content, "parts"):
+                for part in response.candidates[0].content.parts:
+                    if hasattr(part, "function_call") and part.function_call:
+                        # Execute the function call
+                        func_call = part.function_call
+                        tool_result = await self._execute_tool_call(
+                            session, func_call.name, dict(func_call.args)
+                        )
+
+                        # Add tool result to context and get final response
+                        self.messages.append(
+                            {
+                                "author": "tool",
+                                "content": f"Tool {func_call.name} result: {tool_result}",
+                            }
+                        )
+
+                        # Generate final response incorporating tool results
+                        assistant_response = self.genai_client.models.generate_content(
+                            model="gemini-2.0-flash",
+                            contents=self._convert_messages_to_content(),
+                        ).text
+
+                    elif hasattr(part, "text"):
+                        assistant_response += part.text
             else:
-                content_list.append(
-                    Content(role="user", parts=[Part.from_text(text=msg["content"])])
-                )
+                assistant_response = response.text
 
-        self.messages.append(
-            {
-                "author": "assistant",
-                "content": (
-                    assistant_text := self.genai_client.models.generate_content(
-                        model="gemini-2.0-flash", contents=content_list
-                    ).text
-                ),
-            }
-        )
-        return assistant_text
+            # Store assistant response
+            self.messages.append({"author": "assistant", "content": assistant_response})
+
+            return assistant_response
+
+        except Exception as e:
+            error_msg = f"Error processing query: {str(e)}"
+            logger.error(error_msg)
+            self.messages.append({"author": "assistant", "content": error_msg})
+            return error_msg
 
     async def chat_loop(self, session: ClientSession) -> None:
+        """Interactive chat loop for CLI usage"""
+        print("🤖 SQL Assistant ready! Type 'quit' to exit.")
+
         while True:
-            if not (query := input("\nQuery: ").strip()):
-                continue
-            await self.process_query(session, query)
+            try:
+                query = input("\n💬 Query: ").strip()
+                if not query:
+                    continue
+                if query.lower() in ["quit", "exit", "bye"]:
+                    print("👋 Goodbye!")
+                    break
+
+                print("🔄 Processing...")
+                response = await self.process_query(session, query)
+                print(f"\n🤖 Assistant: {response}")
+
+            except KeyboardInterrupt:
+                print("\n👋 Goodbye!")
+                break
+            except Exception as e:
+                print(f"\n❌ Error: {e}")
 
     async def run(self) -> None:
-        """
-        Abre o stdio_client usando server_params e executa chat_loop.
-        """
-        async with stdio_client(self.server_params) as (read, write):
-            async with ClientSession(read, write) as session:
-                await session.initialize()
-                await self.chat_loop(session)
+        """Run the chat client"""
+        try:
+            async with stdio_client(self.server_params) as (read, write):
+                async with ClientSession(read, write) as session:
+                    await session.initialize()
+                    logger.info("MCP session initialized successfully")
+                    await self.chat_loop(session)
+        except Exception as e:
+            logger.error(f"Failed to start chat: {e}")
+            raise
