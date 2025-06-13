@@ -1,8 +1,9 @@
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Dict, List
 
 from google.genai.types import Content, Part
 from mcp import ClientSession
+from mcp.client.stdio import stdio_client
 
 
 @dataclass
@@ -14,14 +15,15 @@ class Chat:
 
     genai_client: Any  # Será o genai.Client (instanciado lá fora)
     server_params: Any  # Será um StdioServerParameters (passado de fora)
-    messages: list[dict[str, str]] = field(
+    messages: List[Dict[str, str]] = field(
         default_factory=lambda: [
             {
                 "author": "system",
                 "content": (
-                    "You are a master SQLite assistant. "
-                    "Your job is to execute SQL queries (via ferramentas externas) "
-                    "and provide the results back to the user."
+                    "You are a analyst assistant, master in SQL. Your job is to trans"
+                    + "late natural language to SQL statements and execute those quer"
+                    + "ies (via external tools) and provide the results back to the u"
+                    + "ser in natural language and markdown tables if asked."
                 ),
             }
         ]
@@ -37,40 +39,38 @@ class Chat:
 
         content_list: list[Content] = []
         for msg in self.messages:
-            role = msg["author"]
-            texto = msg["content"]
-
-            if role == "system":
+            if msg["author"] == "system":
                 content_list.append(
-                    Content(role="user", parts=[Part.from_text(text=texto)])
+                    Content(role="user", parts=[Part.from_text(text=msg["content"])])
                 )
-            elif role == "user":
+            elif msg["author"] == "user":
                 content_list.append(
-                    Content(role="user", parts=[Part.from_text(text=texto)])
+                    Content(role="user", parts=[Part.from_text(text=msg["content"])])
                 )
-            elif role == "assistant":
+            elif msg["author"] == "assistant":
                 content_list.append(
-                    Content(role="model", parts=[Part.from_text(text=texto)])
+                    Content(role="model", parts=[Part.from_text(text=msg["content"])])
                 )
             else:
                 content_list.append(
-                    Content(role="user", parts=[Part.from_text(text=texto)])
+                    Content(role="user", parts=[Part.from_text(text=msg["content"])])
                 )
 
-        response = self.genai_client.models.generate_content(
-            model="gemini-2.0-flash",
-            contents=content_list,
+        self.messages.append(
+            {
+                "author": "assistant",
+                "content": (
+                    assistant_text := self.genai_client.models.generate_content(
+                        model="gemini-2.0-flash", contents=content_list
+                    ).text
+                ),
+            }
         )
-
-        assistant_text = response.text
-        self.messages.append({"author": "assistant", "content": assistant_text})
-
         return assistant_text
 
     async def chat_loop(self, session: ClientSession) -> None:
         while True:
-            query = input("\nQuery: ").strip()
-            if not query:
+            if not (query := input("\nQuery: ").strip()):
                 continue
             await self.process_query(session, query)
 
@@ -78,8 +78,6 @@ class Chat:
         """
         Abre o stdio_client usando server_params e executa chat_loop.
         """
-        from mcp.client.stdio import stdio_client
-
         async with stdio_client(self.server_params) as (read, write):
             async with ClientSession(read, write) as session:
                 await session.initialize()
