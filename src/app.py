@@ -25,9 +25,10 @@ server_params = StdioServerParameters(
     env=None,
 )
 
-
 if "chat" not in st.session_state:
+    # A classe Chat agora não precisa mais de messages no construtor
     st.session_state.chat = Chat(genai_client=genai_client, server_params=server_params)
+
 
 if "history" not in st.session_state:
     st.session_state.history = [
@@ -42,17 +43,16 @@ if "history" not in st.session_state:
     ]
 
 
-async def _send_to_gemini_and_sql(chat_obj: Chat, user_query: str) -> None:
+async def _send_to_gemini_and_sql(chat_obj: Chat, user_query: str) -> str: # Modificado para retornar str
     async with stdio_client(chat_obj.server_params) as (reader, writer):
         async with ClientSession(reader, writer) as session:
             await session.initialize()
-            # O process_query adiciona a mensagem do usuário, envia tudo para o Gemini
-            # e adiciona a resposta ao chat_obj.messages. Ele também retorna a string.
+            # A nova process_query fará todo o trabalho pesado.
             return await chat_obj.process_query(session, user_query)
 
-
 def send_to_assistant(user_text: str) -> None:
-    return asyncio.run(_send_to_gemini_and_sql(st.session_state.chat, user_text))
+    chat = Chat(genai_client=genai_client, server_params=server_params)
+    return asyncio.run(_send_to_gemini_and_sql(chat, user_text))
 
 
 st.title("🗣️ text2sql (com Gemini + MCP)")
