@@ -10,11 +10,8 @@ from client.client import Chat
 load_dotenv()
 
 genai_client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
-
 server_params = StdioServerParameters(
-    command="python",
-    args=["./src/main/server.py"],
-    env=None,
+    command="python", args=["./src/main/server.py"], env=None
 )
 
 
@@ -24,9 +21,8 @@ async def start_cli_chat() -> None:
     Esta função cria uma instância do Chat, passa genai_client e server_params,
     e executa o run() para iniciar o loop de stdin/stdout.
     """
-    chat = Chat(genai_client=genai_client, server_params=server_params)
     print("Starting server dentro do start_cli_chat()…")
-    await chat.run()
+    await Chat(genai_client=genai_client, server_params=server_params).run()
 
 
 if __name__ == "__main__":

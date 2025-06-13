@@ -2,7 +2,7 @@
 import os
 import sqlite3
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Dict, List
 
 from langchain.agents import AgentExecutor, create_tool_calling_agent
 from langchain.tools import Tool as CoreTool
@@ -12,6 +12,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_google_genai import (ChatGoogleGenerativeAI,
                                     GoogleGenerativeAIEmbeddings)
 from mcp import ClientSession
+from mcp.client.stdio import stdio_client
 
 
 @dataclass
