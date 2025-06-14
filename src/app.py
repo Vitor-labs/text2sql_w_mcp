@@ -1,4 +1,3 @@
-# src/app.py
 import asyncio
 import logging
 import os
@@ -13,22 +12,19 @@ from mcp.client.stdio import stdio_client
 
 from client.client import Chat
 
-# Setup paths
 PROJECT_ROOT = Path(__file__).parent
 SRC_DIR = PROJECT_ROOT / "src"
 if str(SRC_DIR) not in sys.path:
     sys.path.append(str(SRC_DIR))
 
 
-# Load environment
 load_dotenv()
 
-# Configure logging
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-# Configuration
 @st.cache_resource
 def get_genai_client():
     """Get cached GenAI client"""
@@ -106,18 +102,14 @@ def main():
         - Request specific SQL queries
         - Ask for database schema
         """)
-
         if st.button("🗑️ Clear History"):
+            # Keep system message
             st.session_state.history = []
-            st.session_state.chat.messages = st.session_state.chat.messages[
-                :1
-            ]  # Keep system message
+            st.session_state.chat.messages = st.session_state.chat.messages[:1]
             st.rerun()
 
     # Chat history
-    chat_container = st.container()
-
-    with chat_container:
+    with st.container():
         for msg in st.session_state.history:
             if msg["author"] == "user":
                 with st.chat_message("user"):
@@ -142,11 +134,8 @@ def main():
                 "Send", disabled=st.session_state.is_processing
             )
 
-    # Process input
     if submitted and user_input.strip():
-        # Add user message to history
         st.session_state.history.append({"author": "user", "content": user_input})
-
         # Set processing state
         st.session_state.is_processing = True
         st.rerun()
@@ -157,9 +146,11 @@ def main():
         if last_message["author"] == "user":
             with st.spinner("🤔 Thinking and processing..."):
                 try:
-                    response = send_message(last_message["content"])
                     st.session_state.history.append(
-                        {"author": "assistant", "content": response}
+                        {
+                            "author": "assistant",
+                            "content": send_message(last_message["content"]),
+                        }
                     )
                 except Exception as e:
                     st.session_state.history.append(

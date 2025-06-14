@@ -1,10 +1,11 @@
 # src/client/client.py
 import logging
 from dataclasses import dataclass, field
-from typing import Any, Dict, List
+from typing import Any
 
+from google.genai import Client
 from google.genai.types import Content, FunctionDeclaration, Part, Tool
-from mcp import ClientSession
+from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
 logger = logging.getLogger(__name__)
@@ -16,9 +17,9 @@ class Chat:
     Enhanced Chat class with proper MCP tool integration
     """
 
-    genai_client: Any
-    server_params: Any
-    messages: List[Dict[str, str]] = field(
+    genai_client: Client
+    server_params: StdioServerParameters
+    messages: list[dict[str, str]] = field(
         default_factory=lambda: [
             {
                 "author": "system",
@@ -156,16 +157,15 @@ class Chat:
 
         while True:
             try:
-                query = input("\n💬 Query: ").strip()
-                if not query:
+                if not (query := input("\n💬 Query: ").strip()):
                     continue
+
                 if query.lower() in ["quit", "exit", "bye"]:
                     print("👋 Goodbye!")
                     break
 
                 print("🔄 Processing...")
-                response = await self.process_query(session, query)
-                print(f"\n🤖 Assistant: {response}")
+                print(f"\n🤖 Assistant: {await self.process_query(session, query)}")
 
             except KeyboardInterrupt:
                 print("\n👋 Goodbye!")
@@ -183,4 +183,4 @@ class Chat:
                     await self.chat_loop(session)
         except Exception as e:
             logger.error(f"Failed to start chat: {e}")
-            raise
+            raise e

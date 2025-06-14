@@ -1,4 +1,3 @@
-# run.py
 import asyncio
 import logging
 import os
@@ -6,12 +5,11 @@ import sys
 from pathlib import Path
 
 from dotenv import load_dotenv
-from google import genai
+from google.genai import Client
 from mcp import StdioServerParameters
 
 from client.client import Chat
 
-# Add src to path
 PROJECT_ROOT = Path(__file__).parent
 SRC_DIR = PROJECT_ROOT / "src"
 
@@ -28,20 +26,15 @@ logger = logging.getLogger(__name__)
 async def main():
     """Main CLI entry point"""
     try:
-        # Initialize components
-        api_key = os.getenv("GOOGLE_API_KEY")
-        if not api_key:
-            print("❌ GOOGLE_API_KEY not found in environment variables")
-            return
+        if not (api_key := os.getenv("GOOGLE_API_KEY")):
+            raise Exception("❌ GOOGLE_API_KEY not found in environment variables")
 
-        # Create and run chat
-        chat = Chat(
-            genai_client=genai.Client(api_key=api_key),
+        await Chat(
+            genai_client=Client(api_key=api_key),
             server_params=StdioServerParameters(
                 command="python", args=[str(SRC_DIR / "main" / "server.py")], env=None
             ),
-        )
-        await chat.run()
+        ).run()
 
     except KeyboardInterrupt:
         print("\n👋 Goodbye!")
