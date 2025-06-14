@@ -1,18 +1,16 @@
-#src/client/client.py
+# src/client/client.py
 import os
 import sqlite3
 from dataclasses import dataclass, field
-from typing import Any, Dict, List
+from typing import Any
 
 from langchain.agents import AgentExecutor, create_tool_calling_agent
 from langchain.tools import Tool as CoreTool
 from langchain_community.vectorstores import FAISS
 from langchain_core.documents import Document
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_google_genai import (ChatGoogleGenerativeAI,
-                                    GoogleGenerativeAIEmbeddings)
+from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
 from mcp import ClientSession
-from mcp.client.stdio import stdio_client
 
 
 @dataclass
@@ -21,19 +19,22 @@ class Chat:
     Classe refatorada para orquestrar um agente Text2SQL com LangChain, HyDE e MCP.
     VERSÃO TOTALMENTE ASSÍNCRONA.
     """
+
     genai_client: Any
     server_params: Any
     mcp_session: ClientSession = field(init=False)
     vector_store: FAISS = field(init=False, default=None)
     llm: ChatGoogleGenerativeAI = field(init=False)
     agent_executor: AgentExecutor = field(init=False)
-    
+
     def __post_init__(self):
         """Inicializa componentes após a criação da instância."""
         if not os.path.exists("faiss_index_schema"):
-            raise FileNotFoundError("O diretório 'faiss_index_schema' não foi encontrado. Execute 'python scripts/embed_schema.py' primeiro.")
+            raise FileNotFoundError(
+                "O diretório 'faiss_index_schema' não foi encontrado. Execute 'python scripts/embed_schema.py' primeiro."
+            )
         self.embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
-        #self.vector_store = FAISS.load_local("faiss_index_schema", embeddings, allow_dangerous_deserialization=True)
+        # self.vector_store = FAISS.load_local("faiss_index_schema", embeddings, allow_dangerous_deserialization=True)
         # Garantindo que o nome do modelo está correto
         self.llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash", temperature=0)
 
@@ -41,10 +42,12 @@ class Chat:
         """Obtém o schema atual do banco SQLite."""
         with sqlite3.connect(db_path) as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")
+            cursor.execute(
+                "SELECT sql FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
+            )
             schemas = [row[0] for row in cursor.fetchall() if row[0]]
         return "\n".join(schemas)
-    
+
     def _build_faiss_index_from_schema(self, schema_str: str):
         """Gera o índice FAISS do schema em tempo real."""
         docs = [Document(page_content=schema_str)]
@@ -76,7 +79,7 @@ class Chat:
             name="sql_executor",
             func=None,
             coroutine=_arun_sql_query_tool,
-            description="Útil para executar consultas SQL e obter resultados do banco de dados. Input deve ser uma query SQL válida."
+            description="Útil para executar consultas SQL e obter resultados do banco de dados. Input deve ser uma query SQL válida.",
         )
         tools = [mcp_sql_tool]
 
@@ -129,7 +132,7 @@ class Chat:
         # retriever = self.vector_store.as_retriever()
         # relevant_schema_docs = retriever.invoke(hypothetical_query)
         # retrieved_schema = "\n\n".join([doc.page_content for doc in relevant_schema_docs])
-        
+
         self.setup_agent(session)
         hypothetical_query = await self._get_hypothetical_query(query)
 
@@ -139,17 +142,22 @@ class Chat:
 
         retriever = self.vector_store.as_retriever()
         relevant_schema_docs = retriever.invoke(hypothetical_query)
-        retrieved_schema = "\n\n".join([doc.page_content for doc in relevant_schema_docs])
+        retrieved_schema = "\n\n".join(
+            [doc.page_content for doc in relevant_schema_docs]
+        )
 
         try:
-            response = await self.agent_executor.ainvoke({
-                "input": query,
-                "retrieved_schema": retrieved_schema,
-                "chat_history": [] 
-            })
+            response = await self.agent_executor.ainvoke(
+                {
+                    "input": query,
+                    "retrieved_schema": retrieved_schema,
+                    "chat_history": [],
+                }
+            )
             return response["output"]
         except Exception as e:
             import traceback
+
             tb = traceback.format_exc()
             error_message = f"Desculpe, houve um erro ao processar sua solicitação no agente: {e}\n{tb}"
             print(error_message)
