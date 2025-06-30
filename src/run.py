@@ -1,5 +1,4 @@
 import asyncio
-import logging
 import os
 import sys
 from pathlib import Path
@@ -9,6 +8,7 @@ from google.genai import Client
 from mcp import StdioServerParameters
 
 from client.client import Chat
+from config.logger import logger
 
 PROJECT_ROOT = Path(__file__).parent
 SRC_DIR = PROJECT_ROOT / "src"
@@ -18,9 +18,6 @@ if str(SRC_DIR) not in sys.path:
 
 
 load_dotenv()
-
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 
 async def main():

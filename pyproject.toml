@@ -15,3 +15,8 @@ dependencies = [
     "streamlit>=1.45.1",
     "structlog>=25.3.0",
 ]
+
+[dependency-groups]
+dev = [
+    "ipykernel>=6.29.5",
+]

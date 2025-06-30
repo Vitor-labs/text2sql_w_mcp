@@ -1,5 +1,4 @@
 # src/client/client.py
-import logging
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -8,7 +7,8 @@ from google.genai.types import Content, FunctionDeclaration, Part, Tool
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
-logger = logging.getLogger(__name__)
+from client.types import Message
+from config.logger import logger
 
 
 @dataclass
@@ -19,7 +19,7 @@ class Chat:
 
     genai_client: Client
     server_params: StdioServerParameters
-    messages: list[dict[str, str]] = field(
+    messages: list[Message] = field(
         default_factory=lambda: [
             {
                 "author": "system",
@@ -128,7 +128,6 @@ class Chat:
                                 "content": f"Tool {func_call.name} result: {tool_result}",
                             }
                         )
-
                         # Generate final response incorporating tool results
                         assistant_response = self.genai_client.models.generate_content(
                             model="gemini-2.0-flash",
@@ -177,6 +176,7 @@ class Chat:
         """Run the chat client"""
         try:
             async with stdio_client(self.server_params) as (read, write):
+                logger.info("Beggining session")
                 async with ClientSession(read, write) as session:
                     await session.initialize()
                     logger.info("MCP session initialized successfully")
