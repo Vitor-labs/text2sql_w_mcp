@@ -44,7 +44,6 @@ def query_data(sql: str) -> str:
         return "Error: Database is not accessible"
 
     logger.info(f"Executing SQL query: {sql}")
-
     try:
         with sqlite3.connect(DB_PATH) as conn:
             # Enable row factory for better output formatting
@@ -54,33 +53,24 @@ def query_data(sql: str) -> str:
 
             # Handle different query types
             if sql.strip().upper().startswith(("SELECT", "PRAGMA", "EXPLAIN")):
-                rows = cursor.fetchall()
-                if not rows:
+                if not (rows := cursor.fetchall()):
                     return "Query executed successfully. No results returned."
 
-                if rows:
-                    # Get column names
+                if rows: # Create formatted table
                     columns = list(rows[0].keys())
-
-                    # Create formatted table
                     result = "| " + " | ".join(columns) + " |\n"
                     result += "| " + " | ".join(["---"] * len(columns)) + " |\n"
 
                     for row in rows:
-                        formatted_row = []
-                        for value in row:
-                            if value is None:
-                                formatted_row.append("NULL")
-                            else:
-                                formatted_row.append(str(value))
-                        result += "| " + " | ".join(formatted_row) + " |\n"
+                        result += "| " + " | ".join(["NULL"if value is None else str(value)for value in row]) + " |\n"
 
                     return f"Query results ({len(rows)} rows):\n\n{result}"
+                else:
+                    return f"Query didn't returned any result."
             else:
                 # For INSERT, UPDATE, DELETE, etc.
                 conn.commit()
-                affected_rows = cursor.rowcount
-                return f"Query executed successfully. {affected_rows} rows affected."
+                return f"Query executed successfully. {cursor.rowcount} rows affected."
 
     except sqlite3.Error as e:
         error_msg = f"SQL Error: {str(e)}"
@@ -109,9 +99,8 @@ def get_schema() -> str:
 
             # Get all tables
             cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
-            tables = cursor.fetchall()
 
-            if not tables:
+            if not (tables := cursor.fetchall()):
                 return "Database is empty (no tables found)."
 
             schema_info = "Database Schema:\n\n"

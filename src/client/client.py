@@ -3,11 +3,11 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from google.genai import Client
-from google.genai.types import Content, FunctionDeclaration, Part, Tool
+from google.genai.types import Content, FunctionDeclaration, Part, Tool, Schema
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
-from client.types import Message
+from client.types import Message, MessageRole
 from config.logger import logger
 
 
@@ -21,9 +21,7 @@ class Chat:
     server_params: StdioServerParameters
     messages: list[Message] = field(
         default_factory=lambda: [
-            {
-                "author": "system",
-                "content": (
+            Message(MessageRole.SYSTEM,(
                     "You are an expert SQL analyst assistant. Your job is to:\n"
                     "1. Translate natural language queries into SQL statements\n"
                     "2. Execute SQL queries using the available tools\n"
@@ -31,8 +29,7 @@ class Chat:
                     "4. Explain your analysis when needed\n\n"
                     "Available tools:\n"
                     "- query_data: Execute SQL queries on the database"
-                ),
-            }
+                ))
         ]
     )
 
@@ -40,36 +37,31 @@ class Chat:
         """Convert internal message format to Gemini Content format"""
         return [
             Content(
-                role="user" if msg["author"] in ["system", "user"] else "model",
-                parts=[Part.from_text(text=msg["content"])],
+                role="user" if msg.role in ["system", "user"] else "model",
+                parts=[Part.from_text(text=msg.content)],
             )
             for msg in self.messages
         ]
 
     async def _get_available_tools(self, session: ClientSession) -> list[Tool]:
         """Fetch available tools from MCP server and convert to Gemini Tool format"""
-        try:
-            gemini_tools = []
+        try:                # Convert MCP tool to Gemini Tool format
 
-            for tool in (await session.list_tools()).tools:
-                # Convert MCP tool to Gemini Tool format
-                gemini_tools.append(
-                    Tool(
+            gemini_tools = [Tool(
                         function_declarations=[
                             FunctionDeclaration(
                                 name=tool.name,
                                 description=tool.description,
-                                parameters={
-                                    "type": "object",
-                                    "properties": tool.inputSchema.get(
+                                parameters=Schema(
+                                    type=object, # type: ignore
+                                    properties=tool.inputSchema.get(
                                         "properties", {}
                                     ),
-                                    "required": tool.inputSchema.get("required", []),
-                                },
+                                    required=tool.inputSchema.get("required", []),
+                                ),
                             )
                         ]
-                    )
-                )
+                    )for tool in (await session.list_tools()).tools]
             logger.info(f"Found {len(gemini_tools)} available tools")
             return gemini_tools
 
@@ -86,10 +78,10 @@ class Chat:
             result = await session.call_tool(tool_name, arguments)
 
             if result.isError:
-                return f"Tool execution failed: {result.content[0].text if result.content else 'Unknown error'}"
+                return f"Tool execution failed: {result.content[0].text if result.content else 'Unknown error'}" # type: ignore
 
             return (
-                result.content[0].text
+                result.content[0].text # type: ignore
                 if result.content
                 else "Tool executed successfully (no output)"
             )
@@ -100,11 +92,11 @@ class Chat:
     async def process_query(self, session: ClientSession, query: str) -> str:
         """Process user query with tool integration"""
         try:
-            self.messages.append({"author": "user", "content": query})
+            self.messages.append(Message(MessageRole.USER, query))
             response = self.genai_client.models.generate_content(
                 model="gemini-2.0-flash",
                 contents=self._convert_messages_to_content(),
-                tools=tools
+                tools=tools # type: ignore
                 if (tools := await self._get_available_tools(session))
                 else None,
             )
@@ -123,15 +115,12 @@ class Chat:
 
                         # Add tool result to context and get final response
                         self.messages.append(
-                            {
-                                "author": "tool",
-                                "content": f"Tool {func_call.name} result: {tool_result}",
-                            }
+                            Message(MessageRole.TOOL, f"Tool {func_call.name} result: {tool_result}")
                         )
                         # Generate final response incorporating tool results
                         assistant_response = self.genai_client.models.generate_content(
                             model="gemini-2.0-flash",
-                            contents=self._convert_messages_to_content(),
+                            contents=self._convert_messages_to_content(), # type: ignore
                         ).text
 
                     elif hasattr(part, "text"):
@@ -140,14 +129,15 @@ class Chat:
                 assistant_response = response.text
 
             # Store assistant response
-            self.messages.append({"author": "assistant", "content": assistant_response})
+            self.messages.append(Message(MessageRole.ASSISTANT, str(assistant_response)))
 
-            return assistant_response
+            return str(assistant_response)
 
         except Exception as e:
             error_msg = f"Error processing query: {str(e)}"
             logger.error(error_msg)
-            self.messages.append({"author": "assistant", "content": error_msg})
+            self.messages.append(
+                Message(MessageRole.ASSISTANT, error_msg))
             return error_msg
 
     async def chat_loop(self, session: ClientSession) -> None:

@@ -65,20 +65,21 @@ async def process_user_input(chat_obj: Chat, user_query: str) -> str:
     try:
         async with stdio_client(chat_obj.server_params) as (reader, writer):
             async with ClientSession(reader, writer) as session:
-                await session.initialize()
+                result = await session.initialize()
+                logger.info(result)
                 return await chat_obj.process_query(session, user_query)
     except Exception as e:
         logger.error(f"Error processing user input: {e}")
         return f"❌ Error: {str(e)}"
 
 
-def send_message(user_text: str) -> str:
+async def send_message(user_text: str) -> str:
     """Send message and get response"""
-    return asyncio.run(process_user_input(st.session_state.chat, user_text))
+    await process_user_input(st.session_state.chat, user_text)
 
 
 # Streamlit UI
-def main():
+async def main():
     st.set_page_config(page_title="Text2SQL Agent", page_icon="🗣️", layout="wide")
 
     init_session_state()
@@ -93,7 +94,7 @@ def main():
         st.markdown("""
         This is a text-to-SQL agent that can:
         - Convert natural language to SQL
-        - Execute queries on your database
+        - Execute queries on your datab ase
         - Format results in tables
         - Provide explanations
         
@@ -136,7 +137,6 @@ def main():
 
     if submitted and user_input.strip():
         st.session_state.history.append({"author": "user", "content": user_input})
-        # Set processing state
         st.session_state.is_processing = True
         st.rerun()
 
@@ -149,7 +149,7 @@ def main():
                     st.session_state.history.append(
                         {
                             "author": "assistant",
-                            "content": send_message(last_message["content"]),
+                            "content": await send_message(last_message["content"]),
                         }
                     )
                 except Exception as e:
@@ -165,4 +165,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
