@@ -192,6 +192,96 @@ def get_schema() -> str:
         return error_msg
 
 
+@mcp.tool()
+def analyze_table(table_name: str) -> str:
+    """
+    Perform detailed analysis of a specific table.
+
+    Args:
+        table_name (str): Name of the table to analyze
+
+    Returns:
+        str: Detailed table analysis
+    """
+    try:
+        logger.info(f"Analyzing table: {table_name}")
+
+        if not ensure_database_exists():
+            return "Error: Database is not accessible"
+
+        with sqlite3.connect(DB_PATH) as conn:
+            cursor = conn.cursor()
+
+            # Check if table exists
+            cursor.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name=?;",
+                (table_name,),
+            )
+            if not cursor.fetchone():
+                return f"Error: Table '{table_name}' does not exist."
+
+            analysis = f"Analysis of Table: {table_name}\n\n"
+
+            # Basic statistics
+            cursor.execute(f"SELECT COUNT(*) FROM {table_name};")
+            total_rows = cursor.fetchone()[0]
+            analysis += f"Total Rows: {total_rows}\n\n"
+
+            if total_rows == 0:
+                return analysis + "Table is empty."
+
+            # Column analysis
+            cursor.execute(f"PRAGMA table_info({table_name});")
+            columns = cursor.fetchall()
+
+            analysis += "Column Statistics:\n\n"
+
+            for col_info in columns:
+                col_name = col_info[1]
+                col_type = col_info[2]
+
+                analysis += f"Column: {col_name} ({col_type})\n"
+
+                # Count non-null values
+                cursor.execute(
+                    f"SELECT COUNT({col_name}) FROM {table_name} WHERE {col_name} IS NOT NULL;"
+                )
+                non_null_count = cursor.fetchone()[0]
+                null_count = total_rows - non_null_count
+
+                analysis += f"  - Non-null values: {non_null_count}\n"
+                analysis += f"  - Null values: {null_count}\n"
+
+                # For numeric columns, get additional stats
+                if col_type.upper() in ["INTEGER", "REAL", "NUMERIC"]:
+                    try:
+                        cursor.execute(f"""
+                            SELECT 
+                                MIN({col_name}) as min_val,
+                                MAX({col_name}) as max_val,
+                                AVG({col_name}) as avg_val
+                            FROM {table_name} 
+                            WHERE {col_name} IS NOT NULL
+                        """)
+                        stats = cursor.fetchone()
+                        if stats[0] is not None:
+                            analysis += f"  - Min: {stats[0]}\n"
+                            analysis += f"  - Max: {stats[1]}\n"
+                            analysis += f"  - Average: {stats[2]:.2f}\n"
+                    except:
+                        pass
+
+                analysis += "\n"
+
+            return analysis
+
+    except Exception as e:
+        error_msg = f"Error analyzing table: {str(e)}"
+        logger.error(error_msg)
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        return error_msg
+
+
 if __name__ == "__main__":
     try:
         logger.info("Starting SQL Agent MCP Server...")
