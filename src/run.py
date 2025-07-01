@@ -1,8 +1,8 @@
 # src/run.py
-import asyncio
 import os
 import sys
 import traceback
+from asyncio import run
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -24,12 +24,9 @@ async def test_server_connectivity():
     try:
         logger.info("Testing server connectivity...")
 
-        # Check if server file exists
-        server_path = Path("src/main/server.py")
-        if not server_path.exists():
+        if not (server_path := Path("src/main/server.py")).exists():
             raise Exception(f"Server file not found: {server_path}")
 
-        # Try to import the server module
         sys.path.insert(0, str(Path("src").absolute()))
         try:
             logger.info("Server module imported successfully")
@@ -47,37 +44,25 @@ async def main():
     """Main CLI entry point with enhanced error handling"""
     try:
         logger.info("Starting SQL Agent CLI...")
-
-        # Check API key
-        api_key = os.getenv("GOOGLE_API_KEY")
-        if not api_key:
+        if not (api_key := os.getenv("GOOGLE_API_KEY")):
             raise Exception("❌ GOOGLE_API_KEY not found in environment variables")
-        logger.info("✅ Google API key found")
 
         # Test server connectivity
         if not await test_server_connectivity():
             raise Exception("❌ Server connectivity test failed")
-        logger.info("✅ Server connectivity test passed")
 
-        # Create and run chat
-        chat = Chat(
+        await Chat(
             genai_client=Client(api_key=api_key),
             server_params=StdioServerParameters(
                 command="python", args=["src/main/server.py"], env=None
             ),
-        )
-
-        logger.info("✅ Chat instance created, starting...")
-        await chat.run()
+        ).run()
 
     except KeyboardInterrupt:
         print("\n👋 Goodbye!")
     except Exception as e:
-        logger.error(f"Error running CLI: {e}")
-        logger.error(f"Full traceback: {traceback.format_exc()}")
-        print(f"❌ Error: {e}")
-        print("💡 Check the logs above for more details")
+        logger.error(f"Error running CLI: {e}\ntraceback: {traceback.format_exc()}")
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    run(main())
