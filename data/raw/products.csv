@@ -1,0 +1,30 @@
+product_id,product_name,category,price,stock_quantity,supplier_id,created_date
+1,Wireless Headphones,Electronics,99.99,150,1,2023-01-01
+2,Coffee Mug,Home & Kitchen,12.50,300,2,2023-01-01
+3,Running Shoes F,Sports & Outdoors,89.95,75,3,2023-01-01
+4,Smartphone Case,Electronics,24.99,200,1,2023-01-01
+5,Yoga Mat,Sports & Outdoors,35.00,120,3,2023-01-01
+6,Desk Lamp,Home & Kitchen,45.99,80,2,2023-01-01
+7,Bluetooth Speaker Green,Electronics,149.99,95,1,2023-01-01
+8,Water Bottle,Sports & Outdoors,18.75,250,3,2023-01-01
+9,Notebook Set,Office Supplies,22.99,180,4,2023-01-01
+10,Wireless Mouse black,Electronics,39.99,130,1,2023-01-01
+11,Laptop Pro X1,Electronics,1299.99,50,101,2023-01-01
+12,Coffee Maker Deluxe,Appliances,89.99,75,102,2023-01-15
+14,Running Shoes M,Sports,129.99,200,103,2023-02-01
+15,Yoga Mat Premium,Sports,49.99,150,103,2023-02-01
+16,Smartphone Z10,Electronics,899.99,80,101,2023-02-15
+17,Blender Max,Appliances,149.99,60,102,2023-03-01
+18,Gaming Chair,Furniture,299.99,40,104,2023-03-15
+19,Desk Lamp LED,Furniture,79.99,90,104,2023-04-01
+20,Protein Powder,Health,39.99,300,105,2023-04-15
+21,Laptop Pro,Electronics,1299.99,50,1,2024-01-01
+22,Wireless Mouse white,Electronics,29.99,200,1,2024-01-01
+23,Office Chair,Furniture,199.99,75,2,2024-01-05
+24,Standing Desk,Furniture,599.99,30,2,2024-01-05
+25,Coffee Maker,Appliances,89.99,100,3,2024-01-10
+26,Bluetooth Speaker Blue,Electronics,79.99,150,1,2024-01-15
+27,Ergonomic Keyboard,Electronics,149.99,80,1,2024-01-20
+28,Monitor 27inch,Electronics,299.99,60,1,2024-01-25
+29,Table Lamp,Furniture,45.99,120,2,2024-02-01
+30,Microwave Oven,Appliances,159.99,40,3,2024-02-05

@@ -1,0 +1,11 @@
+employee_id,name,department,salary,hire_date,manager_id
+1,Alice Brown,Engineering,85000,2022-01-15,NULL
+2,Bob Chen,Engineering,92000,2022-03-20,1
+3,Carol Davis,Marketing,68000,2022-05-10,NULL
+4,David Wilson,Sales,72000,2022-07-12,3
+5,Eva Martinez,Engineering,78000,2022-09-18,1
+6,Frank Johnson,Sales,65000,2022-11-22,3
+7,Grace Kim,HR,70000,2023-01-08,NULL
+8,Henry Taylor,Engineering,95000,2023-03-15,1
+9,Iris Cooper,Marketing,63000,2023-05-20,3
+10,Jack Miller,Sales,69000,2023-07-25,3

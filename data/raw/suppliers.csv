@@ -1,0 +1,15 @@
+supplier_id,supplier_name,contact_email,phone,country,established_year
+101,TechCorp Solutions,contact@techcorp.com,+1-555-1001,USA,2010
+102,HomeAppliance Ltd,info@homeappliance.com,+44-555-1002,UK,2015
+103,SportZone Inc,sales@sportzone.com,+1-555-1003,USA,2012
+104,FurnitureWorld,orders@furnitureworld.com,+49-555-1004,Germany,2008
+105,HealthFirst Co,support@healthfirst.com,+1-555-1005,USA,2018
+106,TechCorp Electronics,contact@techcorp.ele.com,+1-555-0101,USA,2014
+107,HomeStyle Inc,info@homestyle.com,+44-20-7946-0958,UK,2022
+108,SportMax Ltd,sales@sportmax.com,+49-30-12345678,Germany,1998
+109,Office Solutions,support@officesol.com,+33-1-42-86-83-26,France,2001
+110,TechWorld Inc,contact@techworld.com,+1-555-0101,USA,2020
+111,FurnitureMax Ltd,sales@furnituremax.com,+44-20-1234567,UK,2001
+112,HomeAppliances Co,info@homeappliances.com,+49-30-9876543,Germany,1999
+113,GlobalTech Solutions,orders@globaltech.com,+81-3-5555123,Japan,2014
+114,EuroSupply Group,contact@eurosupply.com,+33-1-4567890,France,2010
