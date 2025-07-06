@@ -1,0 +1,5 @@
+id,name,department_id,start_date,end_date,status
+1,Mobile App,1,2023-01-01,2023-06-30,completed
+2,Website Redesign,2,2023-03-01,2023-08-31,in_progress
+3,Sales Campaign,3,2023-02-15,2023-05-15,completed
+4,API Development,1,2023-04-01,2023-12-31,in_progress

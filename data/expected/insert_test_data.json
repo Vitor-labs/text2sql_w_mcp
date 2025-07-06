@@ -1,0 +1,10 @@
+{
+    "new_customers": [
+      {"customer_id": 6, "name": "Alice Brown", "email": "alice@email.com", "city": "Sydney", "country": "Australia", "age": 33},
+      {"customer_id": 7, "name": "Bob Taylor", "email": "bob@email.com", "city": "Dublin", "country": "Ireland", "age": 29}
+    ],
+    "new_products": [
+      {"product_id": 106, "name": "Wireless Headphones", "category": "Electronics", "price": 79.99, "stock_quantity": 100}
+    ]
+  }
+  

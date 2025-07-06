@@ -1,0 +1,53 @@
+{
+    "basic_selects": {
+      "all_customers": {
+        "query": "SELECT * FROM customers ORDER BY customer_id",
+        "expected_rows": 5,
+        "expected_columns": ["customer_id", "name", "email", "city", "country", "age"]
+      },
+      "count_products": {
+        "query": "SELECT COUNT(*) as total FROM products",
+        "expected_result": [{"total": 5}]
+      }
+    },
+    "aggregations": {
+      "customers_by_country": {
+        "query": "SELECT country, COUNT(*) as customer_count FROM customers GROUP BY country ORDER BY customer_count DESC",
+        "expected_result": [
+          {"country": "USA", "customer_count": 1},
+          {"country": "UK", "customer_count": 1},
+          {"country": "Brazil", "customer_count": 1},
+          {"country": "Canada", "customer_count": 1},
+          {"country": "Germany", "customer_count": 1}
+        ]
+      },
+      "avg_age_by_country": {
+        "query": "SELECT country, AVG(age) as avg_age FROM customers GROUP BY country ORDER BY avg_age DESC",
+        "expected_result": [
+          {"country": "Germany", "avg_age": 42.0},
+          {"country": "Brazil", "avg_age": 35.0},
+          {"country": "USA", "avg_age": 30.0},
+          {"country": "Canada", "avg_age": 28.0},
+          {"country": "UK", "avg_age": 25.0}
+        ]
+      }
+    },
+    "joins": {
+      "customer_orders": {
+        "query": "SELECT c.name, c.email, COUNT(o.order_id) as order_count FROM customers c LEFT JOIN orders o ON c.customer_id = o.customer_id GROUP BY c.customer_id ORDER BY order_count DESC",
+        "expected_result": [
+          {"name": "John Doe", "email": "john@email.com", "order_count": 2},
+          {"name": "Jane Smith", "email": "jane@email.com", "order_count": 2},
+          {"name": "Carlos Silva", "email": "carlos@email.com", "order_count": 1},
+          {"name": "Emma Wilson", "email": "emma@email.com", "order_count": 1},
+          {"name": "Hans Mueller", "email": "hans@email.com", "order_count": 0}
+        ]
+      },
+      "order_details": {
+        "query": "SELECT o.order_id, c.name as customer_name, p.name as product_name, o.quantity, o.total_amount FROM orders o JOIN customers c ON o.customer_id = c.customer_id JOIN products p ON o.product_id = p.product_id ORDER BY o.order_id",
+        "expected_rows": 6,
+        "expected_columns": ["order_id", "customer_name", "product_name", "quantity", "total_amount"]
+      }
+    }
+  }
+  

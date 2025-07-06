@@ -35,7 +35,7 @@ def ensure_database_exists() -> bool:
                 conn.executemany(
                     """
                     INSERT OR IGNORE INTO sample_data (name, email, age) VALUES (?, ?, ?)
-                """,
+                    """,
                     [
                         ("John Doe", "john@example.com", 30),
                         ("Jane Smith", "jane@example.com", 25),
