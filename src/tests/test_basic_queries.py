@@ -1,7 +1,7 @@
 from json import load
 from pathlib import Path
 
-from src.client.client import Chat
+from client.client import Chat
 
 expected_data_dir = Path(__file__).parent / "data" / "expected"
 
