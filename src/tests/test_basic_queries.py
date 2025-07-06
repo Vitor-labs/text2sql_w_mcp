@@ -3,7 +3,7 @@ from pathlib import Path
 
 from client.client import Chat
 
-expected_data_dir = Path(__file__).parent / "data" / "expected"
+expected_data_dir = Path(__file__).parent.parent.parent / "data" / "expected"
 
 
 async def test_basic_queries(chat: Chat) -> bool:
