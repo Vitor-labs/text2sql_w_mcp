@@ -1,3 +1,9 @@
+from tests.test_basic_queries import test_basic_queries
+from tests.test_complex import test_complex_queries
+from tests.test_creation import test_table_creation_from_csv
+from tests.test_crud import test_insert_and_delete_operations
+
+
 async def run_all_tests() -> dict[str, bool]:
     """Run all test suites."""
     print("🚀 Starting MCP SQL comprehensive tests...\n")
