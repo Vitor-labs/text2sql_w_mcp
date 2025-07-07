@@ -19,6 +19,7 @@ async def run_all_tests() -> dict[str, bool]:
             command="python", args=["src/main/server.py"], env=None
         ),
     )
+    await chat.run_for_tests()
 
     print("🚀 Starting MCP SQL comprehensive ..\n")
     print("\n" + "=" * 50)

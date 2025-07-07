@@ -17,17 +17,16 @@ class MCPToolExecutor(ToolExecutor):
 
     async def execute_tool(self, tool_name: str, arguments: dict[str, Any]) -> str:
         """Execute a tool through MCP session."""
+        logger.info(f"Executing tool: {tool_name} with args: {arguments}")
         try:
-            logger.info(f"Executing tool: {tool_name} with args: {arguments}")
             result = await self._session.call_tool(tool_name, arguments)
 
             if not result.content:
                 return "Tool executed successfully (no output)"
 
-            content_item = result.content[0]
-            if hasattr(content_item, "text"):
+            if hasattr(result.content[0], "text"):
                 logger.info(f"Tool {tool_name} executed successfully")
-                return content_item.text
+                return result.content[0].text
             else:
                 return f"Tool {tool_name} executed but returned unexpected content type"
 

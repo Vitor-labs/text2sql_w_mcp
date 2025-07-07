@@ -37,6 +37,7 @@ class SqlQueryProcessor(MessageProcessor):
         """Verifica se a mensagem contém um pedido de execução de SQL em qualquer formato."""
         return bool(self.SQL_PATTERN.search(message))
 
+
     async def process(self, message: str, tool_executor: ToolExecutor) -> str:
         """Extrai e executa a consulta SQL de qualquer um dos formatos."""
         try:
