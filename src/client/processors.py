@@ -22,28 +22,41 @@ class SchemaRequestProcessor(MessageProcessor):
             return f"Error retrieving schema: {str(e)}"
 
 
+# Em src/client/processors.py
+
 class SqlQueryProcessor(MessageProcessor):
     """Handles SQL query execution requests."""
 
-    SQL_PATTERN = re.compile(r"EXECUTE_SQL:\s*(.+?)(?:\n|$)", re.IGNORECASE | re.DOTALL)
+    # Expressão regular atualizada para detetar o comando EXECUTE_SQL: OU um bloco de código SQL.
+    SQL_PATTERN = re.compile(
+        r"EXECUTE_SQL:\s*(.+?)(?:\n|$)|```sql\n(.+?)\n```",
+        re.IGNORECASE | re.DOTALL
+    )
 
     async def can_handle(self, message: str) -> bool:
-        """Check if message contains SQL execution request."""
+        """Verifica se a mensagem contém um pedido de execução de SQL em qualquer formato."""
         return bool(self.SQL_PATTERN.search(message))
 
     async def process(self, message: str, tool_executor: ToolExecutor) -> str:
-        """Extract and execute SQL query."""
+        """Extrai e executa a consulta SQL de qualquer um dos formatos."""
         try:
-            if not (match := self.SQL_PATTERN.search(message)):
-                return "No valid SQL query found"
+            match = self.SQL_PATTERN.search(message)
+            if not match:
+                return "Nenhuma consulta SQL válida encontrada para execução."
 
-            sql_query = match.group(1).strip()
-            logger.info(f"Executing SQL: {sql_query}")
-            return f"SQL Query Result:\n{await tool_executor.execute_tool('query_data', {'sql': sql_query})}"
+            # O resultado da nossa expressão regular terá dois grupos.
+            # Usamos o que não for nulo, que será a nossa consulta SQL.
+            sql_query = (match.group(1) or match.group(2)).strip()
+            
+            logger.info(f"Executando SQL: {sql_query}")
+            
+            # Executa a ferramenta e retorna DIRETAMENTE o resultado, sem reinterpretação.
+            tool_result = await tool_executor.execute_tool('query_data', {'sql': sql_query})
+            return f"SQL Query Result:\n{tool_result}"
 
         except Exception as e:
-            logger.error(f"Error processing SQL query: {e}")
-            return f"Error executing SQL: {str(e)}"
+            logger.error(f"Erro ao processar a consulta SQL: {e}")
+            return f"Erro ao executar SQL: {str(e)}"
 
 
 class TableAnalysisProcessor(MessageProcessor):

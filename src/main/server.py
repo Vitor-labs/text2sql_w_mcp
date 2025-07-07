@@ -1,4 +1,5 @@
 # src/main/server.py
+import json
 import logging
 import sqlite3
 import sys
@@ -17,38 +18,49 @@ mcp = FastMCP("SQL Agent Server")
 DB_PATH = Path("./database.db")
 
 
+# Em src/main/server.py
+
 def ensure_database_exists() -> bool:
-    """Ensure database file exists and is accessible"""
+    """
+    Garante que o ficheiro da base de dados exista.
+    Se não existir, cria-o com dados de amostra.
+    Se já existir, não faz nenhuma alteração.
+    """
     try:
-        if not DB_PATH.exists():
-            logger.warning(f"Database file {DB_PATH} does not exist. Creating...")
-            with sqlite3.connect(DB_PATH) as conn:
-                conn.execute("""
-                    CREATE TABLE IF NOT EXISTS sample_data (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        name TEXT NOT NULL,
-                        email TEXT UNIQUE,
-                        age INTEGER,
-                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                    )
-                """)
-                conn.executemany(
-                    """
-                    INSERT OR IGNORE INTO sample_data (name, email, age) VALUES (?, ?, ?)
-                    """,
-                    [
-                        ("John Doe", "john@example.com", 30),
-                        ("Jane Smith", "jane@example.com", 25),
-                        ("Bob Johnson", "bob@example.com", 35),
-                        ("Alice Brown", "alice@example.com", 28),
-                        ("Charlie Wilson", "charlie@example.com", 42),
-                    ],
+        # Se o ficheiro já existe, não faz nada. A aplicação vai usar os dados existentes.
+        if DB_PATH.exists():
+            logger.info(f"Conectando à base de dados existente: {DB_PATH}")
+            return True
+
+        # Se o ficheiro não existe, cria e popula a base de dados para o primeiro uso.
+        logger.warning(f"A base de dados {DB_PATH} não existe. A criar uma nova com dados de amostra...")
+        with sqlite3.connect(DB_PATH) as conn:
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS sample_data (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT NOT NULL,
+                    email TEXT UNIQUE,
+                    age INTEGER,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
-                conn.commit()
-                logger.info("Created sample database with demo data")
+            """)
+            conn.executemany(
+                """
+                INSERT OR IGNORE INTO sample_data (name, email, age) VALUES (?, ?, ?)
+                """,
+                [
+                    ("John Doe", "john@example.com", 30),
+                    ("Jane Smith", "jane@example.com", 25),
+                    ("Bob Johnson", "bob@example.com", 35),
+                    ("Alice Brown", "alice@example.com", 28),
+                    ("Charlie Wilson", "charlie@example.com", 42),
+                ],
+            )
+            conn.commit()
+            logger.info("Base de dados de amostra criada com sucesso.")
         return True
     except Exception as e:
-        logger.error(f"Database initialization failed: {e}")
+        logger.error(f"A inicialização da base de dados falhou: {e}")
         logger.error(f"Traceback: {traceback.format_exc()}")
         return False
 
@@ -113,7 +125,6 @@ def query_data(sql: str) -> str:
         logger.error(error_msg)
         logger.error(f"Traceback: {traceback.format_exc()}")
         return error_msg
-
 
 @mcp.tool()
 def get_schema() -> str:

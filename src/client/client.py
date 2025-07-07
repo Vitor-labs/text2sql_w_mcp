@@ -8,11 +8,8 @@ from mcp.client.stdio import stdio_client
 
 from client.config import ChatConfig
 from client.interfaces import Message, MessageProcessor
-from client.processors import (
-    SchemaRequestProcessor,
-    SqlQueryProcessor,
-    TableAnalysisProcessor,
-)
+from client.processors import (SchemaRequestProcessor, SqlQueryProcessor,
+                               TableAnalysisProcessor)
 from client.session import InMemoryChatSession
 from client.tool_executor import MCPToolExecutor
 from client.types import MessageRole
@@ -89,6 +86,8 @@ class Chat:
             logger.error(error_msg)
             return error_msg
 
+    # # The corrected _process_commands method in src/client/client.py
+
     async def _process_commands(self, ai_response: str) -> str:
         """Process AI response for commands using registered processors."""
         try:
@@ -97,31 +96,17 @@ class Chat:
 
             for processor in self._processors:
                 if await processor.can_handle(ai_response):
+                    # Execute the tool and get the direct result
                     tool_result = await processor.process(
                         ai_response, self._tool_executor
                     )
-                    await self._session.add_message(  # Add tool result to session
+                    # Add the tool's output to the session history
+                    await self._session.add_message(
                         Message(MessageRole.TOOL, tool_result)
                     )
-                    await self._session.add_message(  # Generate follow-up response
-                        Message(
-                            MessageRole.USER,
-                            "Please provide a summary and analysis of these results.",
-                        )
-                    )
-                    followup_response = self._genai_client.models.generate_content(
-                        model=self._config.model_name,
-                        contents=self._session.convert_to_gemini_content(),
-                        config={
-                            "temperature": self._config.temperature,
-                            "max_output_tokens": self._config.max_output_tokens,
-                        },
-                    )
-                    return (
-                        followup_response.text
-                        if followup_response.text
-                        else tool_result
-                    )
+                    # Directly return the tool's result to the user
+                    return tool_result
+
             return ai_response  # No special commands found, return original response
 
         except Exception as e:
@@ -133,9 +118,13 @@ class Chat:
     async def process_query(self, query: str) -> str:
         """Process user query with full pipeline."""
         try:
-            final_response = await self._process_commands(
-                await self._process_with_ai(query)
-            )
+            # First, get the AI's response (which might be a tool call)
+            ai_response = await self._process_with_ai(query)
+            
+            # Second, execute any tools the AI requested and get the final result
+            final_response = await self._process_commands(ai_response)
+
+            # Add the final assistant message to the session history
             await self._session.add_message(
                 Message(MessageRole.ASSISTANT, final_response)
             )
