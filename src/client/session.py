@@ -1,6 +1,4 @@
 # src/client/session.py
-from typing import List
-
 from google.genai.types import Content, Part
 
 from client.interfaces import ChatSession, Message
@@ -13,7 +11,7 @@ class InMemoryChatSession(ChatSession):
 
     def __init__(self) -> None:
         """Initialize chat session with system message."""
-        self._messages: List[Message] = [
+        self._messages: list[Message] = [
             Message(
                 MessageRole.SYSTEM,
                 """You are an expert SQL analyst assistant. Your job is to:
@@ -36,11 +34,11 @@ class InMemoryChatSession(ChatSession):
         self._messages.append(message)
         logger.debug(f"Added {message.role.value} message to session")
 
-    async def get_messages(self) -> List[Message]:
+    async def get_messages(self) -> list[Message]:
         """Get all messages in the session."""
         return self._messages.copy()
 
-    def convert_to_gemini_content(self) -> List[Content]:
+    def convert_to_gemini_content(self) -> list[Content]:
         """Convert messages to Gemini Content format."""
         try:
             return [

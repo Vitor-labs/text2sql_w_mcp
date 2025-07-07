@@ -57,7 +57,7 @@ async def test_table_creation_from_csv(chat: Chat) -> bool:
         Please execute the SQL commands to create and populate the table.
         """
         print(f"📝 Creating table: {table_name}")
-        print(await chat.process_query(create_prompt))
+        await chat.process_query(create_prompt)
         # Verify table was created by checking schema
         schema_response = await chat.process_query("GET_SCHEMA")
 

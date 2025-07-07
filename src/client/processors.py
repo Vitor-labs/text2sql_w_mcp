@@ -25,21 +25,29 @@ class SchemaRequestProcessor(MessageProcessor):
 class SqlQueryProcessor(MessageProcessor):
     """Handles SQL query execution requests."""
 
-    SQL_PATTERN = re.compile(r"EXECUTE_SQL:\s*(.+?)(?:\n|$)", re.IGNORECASE | re.DOTALL)
+    EXECUTE_PATTERN = re.compile(
+        r"EXECUTE_SQL:\s*(.+?)(?:\n|$)", re.IGNORECASE | re.DOTALL
+    )
+    BLOCK_PATTERN = re.compile(r"```sql\s*(.+?)```", re.IGNORECASE | re.DOTALL)
 
     async def can_handle(self, message: str) -> bool:
         """Check if message contains SQL execution request."""
-        return bool(self.SQL_PATTERN.search(message))
+        return bool(self.EXECUTE_PATTERN.search(message)) or bool(
+            self.BLOCK_PATTERN.search(message)
+        )
 
     async def process(self, message: str, tool_executor: ToolExecutor) -> str:
         """Extract and execute SQL query."""
         try:
-            if not (match := self.SQL_PATTERN.search(message)):
+            if match := self.EXECUTE_PATTERN.search(message):
+                query = (match.group(1) or match.group(2)).strip()
+            elif match := self.BLOCK_PATTERN.search(message):
+                query = (match.group(1) or match.group(2)).strip()
+            else:
                 return "No valid SQL query found"
 
-            sql_query = match.group(1).strip()
-            logger.info(f"Executing SQL: {sql_query}")
-            return f"SQL Query Result:\n{await tool_executor.execute_tool('query_data', {'sql': sql_query})}"
+            logger.info(f"Executing SQL: {query}")
+            return f"SQL Query Result:\n{await tool_executor.execute_tool('query_data', {'sql': query})}"
 
         except Exception as e:
             logger.error(f"Error processing SQL query: {e}")

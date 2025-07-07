@@ -6,7 +6,6 @@ from google.genai import Client
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
-from client.config import ChatConfig
 from client.interfaces import Message, MessageProcessor
 from client.processors import (
     SchemaRequestProcessor,
@@ -16,6 +15,7 @@ from client.processors import (
 from client.session import InMemoryChatSession
 from client.tool_executor import MCPToolExecutor
 from client.types import MessageRole
+from config.config import ChatConfig
 from config.logger import logger
 
 
@@ -40,7 +40,9 @@ class Chat:
             TableAnalysisProcessor(),
         ]
 
-    async def _initialize_mcp_session(self, session: ClientSession) -> bool:
+    async def _initialize_mcp_session(
+        self, session: ClientSession, in_test_mode: bool = False
+    ) -> bool:
         """Initialize MCP session and tools."""
         try:
             await wait_for(session.initialize(), timeout=self._config.session_timeout)
@@ -51,8 +53,9 @@ class Chat:
 
             self._tool_executor = MCPToolExecutor(session)
 
-            for tool in mcp_tools.tools:
-                logger.info(f"Available tool: {tool.name} - {tool.description}")
+            if not in_test_mode:
+                for tool in mcp_tools.tools:
+                    logger.info(f"\nAvailable tool: {tool.name} - {tool.description}")
 
             return len(mcp_tools.tools) > 0
 
@@ -77,12 +80,8 @@ class Chat:
                     "temperature": self._config.temperature,
                     "max_output_tokens": self._config.max_output_tokens,
                 },
-            )
-            return (
-                "No response generated from the AI model"
-                if not response.text
-                else response.text
-            )
+            ).text
+            return "No response from the AI model" if not response else response
 
         except Exception as e:
             error_msg = f"Error generating AI response: {str(e)}"
@@ -97,31 +96,10 @@ class Chat:
 
             for processor in self._processors:
                 if await processor.can_handle(ai_response):
-                    tool_result = await processor.process(
-                        ai_response, self._tool_executor
-                    )
-                    await self._session.add_message(  # Add tool result to session
-                        Message(MessageRole.TOOL, tool_result)
-                    )
-                    await self._session.add_message(  # Generate follow-up response
-                        Message(
-                            MessageRole.USER,
-                            "Please provide a summary and analysis of these results.",
-                        )
-                    )
-                    followup_response = self._genai_client.models.generate_content(
-                        model=self._config.model_name,
-                        contents=self._session.convert_to_gemini_content(),
-                        config={
-                            "temperature": self._config.temperature,
-                            "max_output_tokens": self._config.max_output_tokens,
-                        },
-                    )
-                    return (
-                        followup_response.text
-                        if followup_response.text
-                        else tool_result
-                    )
+                    result = await processor.process(ai_response, self._tool_executor)
+                    await self._session.add_message(Message(MessageRole.TOOL, result))
+                    return result
+
             return ai_response  # No special commands found, return original response
 
         except Exception as e:
@@ -173,6 +151,19 @@ class Chat:
             except Exception as e:
                 print(f"\n❌ Error: {e}")
                 logger.error(f"Chat loop error: {traceback.format_exc()}")
+
+    async def run_for_tests(self) -> None:
+        logger.info(
+            f"Starting server: {self._server_params.command} {' '.join(self._server_params.args)} for testing"
+        )
+        async with stdio_client(self._server_params) as (read, write):
+            async with ClientSession(read, write) as session:
+                if not await self._initialize_mcp_session(session, in_test_mode=True):
+                    logger.warning(
+                        "No tools available - the assistant will have limited functionality"
+                    )
+                else:
+                    logger.info("Tools are available and ready")
 
     async def run(self) -> None:
         """Main run method with comprehensive error handling."""
