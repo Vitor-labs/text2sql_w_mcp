@@ -1,4 +1,6 @@
 # src/client/session.py
+from typing import Literal
+
 from google.genai.types import Content, Part
 
 from client.interfaces import ChatSession, Message
@@ -38,24 +40,29 @@ class InMemoryChatSession(ChatSession):
         """Get all messages in the session."""
         return self._messages.copy()
 
-    def convert_to_gemini_content(self) -> list[Content]:
+    def convert_to_llm_content(
+        self, model: Literal["openai", "gemini", "claude"]
+    ) -> list[Content]:
         """Convert messages to Gemini Content format."""
         try:
-            return [
-                Content(
-                    role=(
-                        "user"
-                        if msg.role in [MessageRole.SYSTEM, MessageRole.USER]
-                        else "model"
-                    ),
-                    parts=[
-                        Part.from_text(
-                            text=f"{'[SYSTEM] ' if msg.role == MessageRole.SYSTEM else ''}{msg.content}"
-                        )
-                    ],
-                )
-                for msg in self._messages
-            ]
+            if model == "gemini":
+                return [
+                    Content(
+                        role=(
+                            "user"
+                            if msg.role in [MessageRole.SYSTEM, MessageRole.USER]
+                            else "model"
+                        ),
+                        parts=[
+                            Part.from_text(
+                                text=f"{'[SYSTEM] ' if msg.role == MessageRole.SYSTEM else ''}{msg.content}"
+                            )
+                        ],
+                    )
+                    for msg in self._messages
+                ]
+            else:
+                raise NotImplementedError("Calma ae chefia, ainda não está pronto")
         except Exception as e:
             logger.error(f"Error converting messages to content: {e}")
             return []

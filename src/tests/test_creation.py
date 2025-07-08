@@ -31,7 +31,8 @@ async def test_table_creation_from_csv(chat: Chat) -> bool:
         table_name = csv_file.stem
         df = read_csv(csv_file)
         # allways thanks the AI, you will survive in the machine uprising
-        create_prompt = f"""
+        print(f"📝 Creating table: {table_name}")
+        await chat.process_query(f"""
         Please create a table called '{table_name}' with the following structure:
         Table name is "{table_name}", with columns:
         {
@@ -43,7 +44,9 @@ async def test_table_creation_from_csv(chat: Chat) -> bool:
             )
         }
         Add an ignore clause, there is an possibility of the table has already been created.
-        Then insert the following data:
+        """)
+        await chat.process_query(f"""
+        Now, on the newly create {table_name} table. Insert the following data:
         {
             "".join(
                 [
@@ -52,16 +55,9 @@ async def test_table_creation_from_csv(chat: Chat) -> bool:
                     for _, row in df.to_dict(orient="index").items()
                 ]
             )
-        }
-        
-        Please execute the SQL commands to create and populate the table.
-        """
-        print(f"📝 Creating table: {table_name}")
-        await chat.process_query(create_prompt)
+        }""")
         # Verify table was created by checking schema
-        schema_response = await chat.process_query("GET_SCHEMA")
-
-        if table_name.lower() in schema_response.lower():
+        if table_name.lower() in (await chat.process_query("GET_SCHEMA")).lower():
             print(f"✅ Table {table_name} created successfully")
             # Verify data was inserted correctly
             if str(len(df)) in await chat.process_query(

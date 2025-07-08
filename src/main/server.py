@@ -1,5 +1,4 @@
 # src/main/server.py
-import json
 import logging
 import sqlite3
 import sys
@@ -18,8 +17,6 @@ mcp = FastMCP("SQL Agent Server")
 DB_PATH = Path("./database.db")
 
 
-# Em src/main/server.py
-
 def ensure_database_exists() -> bool:
     """
     Garante que o ficheiro da base de dados exista.
@@ -33,7 +30,9 @@ def ensure_database_exists() -> bool:
             return True
 
         # Se o ficheiro não existe, cria e popula a base de dados para o primeiro uso.
-        logger.warning(f"A base de dados {DB_PATH} não existe. A criar uma nova com dados de amostra...")
+        logger.warning(
+            f"A base de dados {DB_PATH} não existe. A criar uma nova com dados de amostra..."
+        )
         with sqlite3.connect(DB_PATH) as conn:
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS sample_data (
@@ -125,6 +124,7 @@ def query_data(sql: str) -> str:
         logger.error(error_msg)
         logger.error(f"Traceback: {traceback.format_exc()}")
         return error_msg
+
 
 @mcp.tool()
 def get_schema() -> str:

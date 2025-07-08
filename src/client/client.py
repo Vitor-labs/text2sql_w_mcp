@@ -1,14 +1,18 @@
-# src/client/enhanced_client.py
+# src/client/client.py
 import traceback
 from asyncio import TimeoutError, wait_for
+from contextlib import asynccontextmanager
 
 from google.genai import Client
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
 from client.interfaces import Message, MessageProcessor
-from client.processors import (SchemaRequestProcessor, SqlQueryProcessor,
-                               TableAnalysisProcessor)
+from client.processors import (
+    SchemaRequestProcessor,
+    SqlQueryProcessor,
+    TableAnalysisProcessor,
+)
 from client.session import InMemoryChatSession
 from client.tool_executor import MCPToolExecutor
 from client.types import MessageRole
@@ -72,7 +76,7 @@ class Chat:
             await self._session.add_message(Message(MessageRole.USER, user_query))
             response = self._genai_client.models.generate_content(
                 model=self._config.model_name,
-                contents=self._session.convert_to_gemini_content(),
+                contents=self._session.convert_to_llm_content("gemini"),
                 config={
                     "temperature": self._config.temperature,
                     "max_output_tokens": self._config.max_output_tokens,
@@ -84,8 +88,6 @@ class Chat:
             error_msg = f"Error generating AI response: {str(e)}"
             logger.error(error_msg)
             return error_msg
-
-    # # The corrected _process_commands method in src/client/client.py
 
     async def _process_commands(self, ai_response: str) -> str:
         """Process AI response for commands using registered processors."""
@@ -118,12 +120,10 @@ class Chat:
         """Process user query with full pipeline."""
         try:
             # First, get the AI's response (which might be a tool call)
-            ai_response = await self._process_with_ai(query)
-            
             # Second, execute any tools the AI requested and get the final result
-            final_response = await self._process_commands(ai_response)
-
-            # Add the final assistant message to the session history
+            final_response = await self._process_commands(
+                await self._process_with_ai(query)
+            )
             await self._session.add_message(
                 Message(MessageRole.ASSISTANT, final_response)
             )
@@ -162,9 +162,11 @@ class Chat:
                 print(f"\n❌ Error: {e}")
                 logger.error(f"Chat loop error: {traceback.format_exc()}")
 
-    async def run_for_tests(self) -> None:
+    @asynccontextmanager
+    async def test_context(self):
+        """Context manager for running tests with persistent MCP session."""
         logger.info(
-            f"Starting server: {self._server_params.command} {' '.join(self._server_params.args)} for testing"
+            f"Starting server for tests: {self._server_params.command} {' '.join(self._server_params.args)}"
         )
         async with stdio_client(self._server_params) as (read, write):
             async with ClientSession(read, write) as session:
@@ -173,7 +175,11 @@ class Chat:
                         "No tools available - the assistant will have limited functionality"
                     )
                 else:
-                    logger.info("Tools are available and ready")
+                    logger.info("Tools are available and ready for testing")
+                try:
+                    yield self
+                finally:
+                    self._tool_executor = None
 
     async def run(self) -> None:
         """Main run method with comprehensive error handling."""

@@ -22,21 +22,17 @@ class SchemaRequestProcessor(MessageProcessor):
             return f"Error retrieving schema: {str(e)}"
 
 
-# Em src/client/processors.py
-
 class SqlQueryProcessor(MessageProcessor):
     """Handles SQL query execution requests."""
 
     # Expressão regular atualizada para detetar o comando EXECUTE_SQL: OU um bloco de código SQL.
     SQL_PATTERN = re.compile(
-        r"EXECUTE_SQL:\s*(.+?)(?:\n|$)|```sql\n(.+?)\n```",
-        re.IGNORECASE | re.DOTALL
+        r"EXECUTE_SQL:\s*(.+?)(?:\n|$)|```sql\n(.+?)\n```", re.IGNORECASE | re.DOTALL
     )
 
     async def can_handle(self, message: str) -> bool:
         """Verifica se a mensagem contém um pedido de execução de SQL em qualquer formato."""
         return bool(self.SQL_PATTERN.search(message))
-
 
     async def process(self, message: str, tool_executor: ToolExecutor) -> str:
         """Extrai e executa a consulta SQL de qualquer um dos formatos."""
@@ -48,11 +44,13 @@ class SqlQueryProcessor(MessageProcessor):
             # O resultado da nossa expressão regular terá dois grupos.
             # Usamos o que não for nulo, que será a nossa consulta SQL.
             sql_query = (match.group(1) or match.group(2)).strip()
-            
+
             logger.info(f"Executando SQL: {sql_query}")
-            
+
             # Executa a ferramenta e retorna DIRETAMENTE o resultado, sem reinterpretação.
-            tool_result = await tool_executor.execute_tool('query_data', {'sql': sql_query})
+            tool_result = await tool_executor.execute_tool(
+                "query_data", {"sql": sql_query}
+            )
             return f"SQL Query Result:\n{tool_result}"
 
         except Exception as e:
